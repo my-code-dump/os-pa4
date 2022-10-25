@@ -29,7 +29,7 @@ int main (int argc, char** argv) {
     int i;
     void* voidptr = NULL;
 
-    for (int x = 0; x < 100; x++) {
+    for (int x = 0; x < 40; x++) {
         pthread_t tid[2];
         srand(getpid());
 
