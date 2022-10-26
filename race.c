@@ -3,6 +3,8 @@
 #include <stdlib.h> 
 #include <pthread.h> 
 
+pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+
 struct {
     int balance[2];
 } Bank = {{100,100}};
@@ -13,6 +15,8 @@ void* MakeTransactions() {
 
     for (i = 0; i < 100; i++) {
         rint = (rand() % 30) - 15;
+        // Locks the mutex for the variables in shared memory
+        pthread_mutex_lock(&mutex);
         if ((((tmp1 = Bank.balance[0]) + rint) >= 0) &&
                 (((tmp2 = Bank.balance[1]) - rint) >= 0)) {
             Bank.balance[0] = tmp1 + rint;
@@ -21,6 +25,8 @@ void* MakeTransactions() {
             }
             Bank.balance[1] = tmp2 - rint;
         }
+        // Unlocks mutex for the variables in shared memory
+        pthread_mutex_unlock(&mutex);
     }
     return NULL;
 }
@@ -55,5 +61,9 @@ int main (int argc, char** argv) {
                 Bank.balance[0], Bank.balance[1], 
                 Bank.balance[0] + Bank.balance[1]);
     }
+
+    // Free mutex
+    pthread_mutex_destroy(&mutex);
+
     return 0;
 }
