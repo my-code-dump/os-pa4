@@ -33,31 +33,55 @@ void* MakeTransactions() {
                    //
 int main (int argc, char** argv) {
     int i;
-    void* voidptr = NULL;
+    //void* voidptr = NULL;
+    pid_t pid;
+    pthread_t tid[2];
+    srand(getpid());
 
-        pthread_t tid[2];
-        srand(getpid());
+    printf("Init Balances A:%d + B:%d ==> %d!\n", 
+            Bank.balance[0], Bank.balance[1], 
+            Bank.balance[0] + Bank.balance[1]);
 
-        printf("Init Balances A:%d + B:%d ==> %d!\n", 
-                Bank.balance[0], Bank.balance[1], 
-                Bank.balance[0] + Bank.balance[1]);
+    int shmid;
+    struct yoyotoys *s; 
+    
+    key_t key = ftok("schmfile",65);
+    if ((shmid = shmget(key, 32, 0660)) < 0) {
+        perror("schmget");
+        exit(1);
+    }
+    
+    if ((s = shmat(shmid, NULL, 0)) == (struct yoyotoys*) -1) {
+        perror("shmat");
+        exit(1);
+    }
+    
+    // Switch to initiate forking
+    switch (pid = fork()) {
+        // Child Node
+        case 0: 
+            {
+                MakeTransactions();
+                break;
+            }
+        // Parent Node
+        case 1:
+            {
+                MakeTransactions();
+                wait(1);
+                break;
+            }
+        default:
+            {
+                perror("Fork Failure");
+                exit(2);
+                break;
+            }
+    }
 
-        int shmid;
-        struct yoyotoys *s; 
-        
-        key_t key = ftok("schmfile",65);
-        if ((shmid = shmget(key, 32, 0660)) < 0) {
-            perror("schmget");
-            exit(1);
-        }
-        
-        if ((s = shmat(shmid, NULL, 0)) == (struct yoyotoys*) -1) {
-            perror("shmat");
-            exit(1);
-        }
-        
-        printf("Let's check the balances A:%d + B:%d ==> %d ?= 200\n", 
-                Bank.balance[0], Bank.balance[1], 
-                Bank.balance[0] + Bank.balance[1]);
+    printf("Let's check the balances A:%d + B:%d ==> %d ?= 200\n", 
+            Bank.balance[0], Bank.balance[1], 
+            Bank.balance[0] + Bank.balance[1]);
+
     return 0;
 }
