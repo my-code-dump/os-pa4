@@ -33,11 +33,11 @@ void* MakeTransactions() {
 
 int main (int argc, char** argv) {
     int i;
+    srand(getpid());
     void* voidptr = NULL;
 
     for (int x = 0; x < 40; x++) {
         pthread_t tid[2];
-        srand(getpid());
 
         printf("Init Balances A:%d + B:%d ==> %d!\n", 
                 Bank.balance[0], Bank.balance[1], 
