@@ -6,71 +6,95 @@
 #include <sys/ipc.h>
 #include <sys/shm.h>
 #include <string.h>
-#include <pthread.h>
-
-pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+#include <semaphore.h>
+#define NUM 40
 
 struct moneymcpherson {
     int balance[2];
 } Bank = {{100,100}};
 
-void* MakeTransactions(struct moneymcpherson *s, char origin[]) {
+struct semaphores {
+    sem_t mtx;
+};
+
+sem_t *test;
+struct moneymcpherson *x; 
+struct semaphores *s;
+
+void* MakeTransactions() {
     int i, j, tmp1, tmp2, rint;
     double dummy;
 
-    printf("%s\n", origin);
-
     for (i = 0; i < 100; i++) {
         rint = (rand() % 30) - 15;
-        if ((((tmp1 = s->balance[0]) + rint) >= 0) &&
-                (((tmp2 = s->balance[1]) - rint) >= 0)) {
-            s->balance[0] = tmp1 + rint;
+        sem_wait(test);
+        if ((((tmp1 = x->balance[0]) + rint) >= 0) &&
+                (((tmp2 = x->balance[1]) - rint) >= 0)) {
+            x->balance[0] = tmp1 + rint;
             for (j = 0; j < rint * 1000; j++) {
                 dummy = 2.345 * 8.765 / 1.234;
             }
-            s->balance[1] = tmp2 - rint;
+            x->balance[1] = tmp2 - rint;
         }
+        sem_post(test);
     }
     return NULL;
 }
 
-void parent(){
-    printf("Hello from parent\n");
-}
-
-void child(){
-    printf("Hello from child\n");
-}
-
 int main (int argc, char** argv) {
     pid_t pid;
-    int shmid;
-    struct moneymcpherson *s; 
+    srand(getpid());
+    int shmid1, shmid2;
 
-    key_t key = ftok("shmfile",12);
-
+    /* ----- Memory segment for moneymcpherson ----- */
+    key_t key1 = ftok("shmfile1",12343);
     // Create memory space segment
-    if ((shmid = shmget(key, 32, IPC_CREAT | 0666)) < 0) {
+    if ((shmid1 = shmget(key1, 32, IPC_CREAT | 0666)) < 0) {
         perror("shmget");
         exit(1);
     }
-    
+
     // Attach it to our object to use
-    if ((s = shmat(shmid, NULL, 0)) == (struct moneymcpherson*) -1) {
+    if ((x = shmat(shmid1, NULL, 0)) == (struct moneymcpherson*) -1) {
         perror("shmat");
         exit(1);
     }
 
     // Setting up the balance since we are NOT using Bank
-    s->balance[0] = 100;
-    s->balance[1] = 100;
-    
-    for (int i = 0; i < 40; i++) { 
-        srand(getpid());
+    x->balance[0] = 100;
+    x->balance[1] = 100;
 
+    /* ----- Memory segment for semaphores ----- */
+    key_t key2 = ftok("shmfile2",87);
+    // Create memory space segment
+    if ((shmid2 = shmget(key2, 32, IPC_CREAT | 0666)) < 0) {
+        perror("shmget");
+        exit(1);
+    }
+
+    // Attach it to our object to use
+    if ((test = shmat(shmid2, NULL, 0)) == (sem_t*) -1) {
+        perror("shmat");
+        exit(1);
+    }
+
+    printf("Init Balances A:%d + B:%d ==> %d!\n", 
+                x->balance[0], x->balance[1], 
+                x->balance[0] + x->balance[1]);
+
+    sem_init(test, 0, 1);
+
+    printf("Init Balances A:%d + B:%d ==> %d!\n", 
+                x->balance[0], x->balance[1], 
+                x->balance[0] + x->balance[1]);
+
+
+    /* ----- Forking ----- */
+/*
+    for (int i = 0; i < NUM; i++) { 
         printf("Init Balances A:%d + B:%d ==> %d!\n", 
-                s->balance[0], s->balance[1], 
-                s->balance[0] + s->balance[1]);
+                x->balance[0], x->balance[1], 
+                x->balance[0] + x->balance[1]);
 
         switch (pid = fork()) {
             // Fork failures
@@ -83,23 +107,24 @@ int main (int argc, char** argv) {
             // Child Node
             case 0: 
                 {
-                    MakeTransactions(s,"Child");
+                   // MakeTransactions();
                     exit(2);
                     break;
                 }
             // Parent Node
             default:
                 {
-                    MakeTransactions(s,"Parent");
+                    MakeTransactions();
                     wait(NULL);
                     break;
                 }
         }
-
         printf("Let's check the balances A:%d + B:%d ==> %d ?= 200\n", 
-                s->balance[0], s->balance[1], 
-                s->balance[0] + s->balance[1]);
+                x->balance[0], x->balance[1], 
+                x->balance[0] + x->balance[1]);
     }
+*/
+    sem_destroy(test);
 
     return 0;
 }
