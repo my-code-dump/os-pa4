@@ -9,9 +9,9 @@
 #include <semaphore.h>
 #define NUM 40
 
-struct moneymcpherson {
+typedef struct moneymcpherson {
     int balance[2];
-} Bank = {{100,100}};
+} Bank;
 
 struct semaphores {
     sem_t mtx;
@@ -26,8 +26,8 @@ void* MakeTransactions() {
     double dummy;
 
     for (i = 0; i < 100; i++) {
-        rint = (rand() % 30) - 15;
         sem_wait(test);
+        rint = (rand() % 30) - 15;
         if ((((tmp1 = x->balance[0]) + rint) >= 0) &&
                 (((tmp2 = x->balance[1]) - rint) >= 0)) {
             x->balance[0] = tmp1 + rint;
@@ -44,13 +44,17 @@ void* MakeTransactions() {
 int main (int argc, char** argv) {
     pid_t pid;
     srand(getpid());
+    char* shm;
+    size_t BANKSZ = sizeof(Bank);
+    size_t SEMSZ = sizeof(sem_t);
+    size_t MEMSZ = (BANKSZ + SEMSZ); 
     int shmid1, shmid2;
 
     /* ----- Memory segment for moneymcpherson ----- */
     key_t key1 = ftok("shmfile1",12343);
     // Create memory space segment
     if ((shmid1 = shmget(key1, 32, IPC_CREAT | 0666)) < 0) {
-        perror("shmget");
+        perror("shmget1");
         exit(1);
     }
 
@@ -68,7 +72,7 @@ int main (int argc, char** argv) {
     key_t key2 = ftok("shmfile2",87);
     // Create memory space segment
     if ((shmid2 = shmget(key2, 32, IPC_CREAT | 0666)) < 0) {
-        perror("shmget");
+        perror("shmget2");
         exit(1);
     }
 
@@ -78,20 +82,12 @@ int main (int argc, char** argv) {
         exit(1);
     }
 
-    printf("Init Balances A:%d + B:%d ==> %d!\n", 
-                x->balance[0], x->balance[1], 
-                x->balance[0] + x->balance[1]);
-
-    sem_init(test, 0, 1);
-
-    printf("Init Balances A:%d + B:%d ==> %d!\n", 
-                x->balance[0], x->balance[1], 
-                x->balance[0] + x->balance[1]);
-
+    test = (sem_t*) (test + 1);
+    sem_init(test, 1, 1);
 
     /* ----- Forking ----- */
-/*
     for (int i = 0; i < NUM; i++) { 
+        printf("i = %d\n", i);
         printf("Init Balances A:%d + B:%d ==> %d!\n", 
                 x->balance[0], x->balance[1], 
                 x->balance[0] + x->balance[1]);
@@ -107,7 +103,7 @@ int main (int argc, char** argv) {
             // Child Node
             case 0: 
                 {
-                   // MakeTransactions();
+                    MakeTransactions();
                     exit(2);
                     break;
                 }
@@ -115,15 +111,24 @@ int main (int argc, char** argv) {
             default:
                 {
                     MakeTransactions();
-                    wait(NULL);
+
+                    sem_wait(test);
+                                          fflush(stdout);
+                       //wait(NULL);
+                    sem_post(test);
                     break;
                 }
+            printf("Let's check the balances A:%d + B:%d ==> %d ?= 200\n", 
+                      x->balance[0], x->balance[1], 
+                      x->balance[0] + x->balance[1]);
+
         }
+        /*
         printf("Let's check the balances A:%d + B:%d ==> %d ?= 200\n", 
                 x->balance[0], x->balance[1], 
                 x->balance[0] + x->balance[1]);
+                */
     }
-*/
     sem_destroy(test);
 
     return 0;
