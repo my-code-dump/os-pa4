@@ -9,7 +9,7 @@
 #include <semaphore.h>
 #define NUM 40
 
-typedef struct moneymcpherson {
+struct moneymcpherson {
     int balance[2];
 } Bank;
 
@@ -39,7 +39,10 @@ void* MakeTransactions() {
 /* ----- Memory segment for moneymcpherson ----- */
 void createMoneyMemSpace() {
     int shmid1;
-    key_t key1 = ftok("shmfile1",12);
+
+    // It needs to attach to an existing directory otherwise for 2 memory spaces
+    // otherwise the memory space will overite each other.
+    key_t key1 = ftok("/tmp",12);
 
     // Create memory space segment
     if ((shmid1 = shmget(key1, 32, IPC_CREAT | 0666)) < 0) {
@@ -61,7 +64,10 @@ void createMoneyMemSpace() {
 /* ----- Memory segment for semaphores ----- */
 void createSmphrMemSpace() {
     int shmid2;
-    key_t key2 = ftok("shmfile2",87);
+
+    // It needs to attach to an existing directory otherwise for 2 memory spaces
+    // otherwise the memory space will overite each other. 
+    key_t key2 = ftok("/tmp",87);
 
     // Create memory space segment
     if ((shmid2 = shmget(key2, 32, IPC_CREAT | 0666)) < 0) {
@@ -74,8 +80,6 @@ void createSmphrMemSpace() {
         perror("shmat");
         exit(1);
     }
-
-    mtx = (sem_t*) (mtx + 1);
 }
 
 int main (int argc, char** argv) {
@@ -84,7 +88,7 @@ int main (int argc, char** argv) {
 
     createMoneyMemSpace(); 
     createSmphrMemSpace();
-    
+ 
     sem_init(mtx, 1, 1);
 
     /* ----- Forking ----- */
@@ -116,6 +120,7 @@ int main (int argc, char** argv) {
                     break;
                 }
         }
+
         printf("Let's check the balances A:%d + B:%d ==> %d ?= 200\n\n", 
                 x->balance[0], x->balance[1], 
                 x->balance[0] + x->balance[1]);
