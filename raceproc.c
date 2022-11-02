@@ -39,10 +39,14 @@ void* MakeTransactions() {
 /* ----- Memory segment for moneymcpherson ----- */
 void createMoneyMemSpace() {
     int shmid1;
+    key_t key1;
 
     // It needs to attach to an existing directory otherwise for 2 memory spaces
     // otherwise the memory space will overite each other.
-    key_t key1 = ftok("/tmp",12);
+    if ((key1 = ftok("/tmp",12)) == (key_t) -1) {
+        perror("IPC Error: ftok");
+        exit(1);
+    }
 
     // Create memory space segment
     if ((shmid1 = shmget(key1, 32, IPC_CREAT | 0666)) < 0) {
@@ -64,10 +68,14 @@ void createMoneyMemSpace() {
 /* ----- Memory segment for semaphores ----- */
 void createSmphrMemSpace() {
     int shmid2;
+    key_t key2;
 
     // It needs to attach to an existing directory otherwise for 2 memory spaces
     // otherwise the memory space will overite each other. 
-    key_t key2 = ftok("/tmp",87);
+    if ((key2 = ftok("/tmp",87)) == (key_t) -1) {
+        perror("IPC Error: ftok");
+        exit(1);
+    }
 
     // Create memory space segment
     if ((shmid2 = shmget(key2, 32, IPC_CREAT | 0666)) < 0) {
